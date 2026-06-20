@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query, queryOne } from "@/lib/db";
 import { requireRole } from "@/lib/api-auth";
-import { Registrant } from "@/lib/types";
+import { Registrant, CheckinMember } from "@/lib/types";
 
 // POST /api/registrants/:id/checkin
 // Body: { members: Array<{ id: number; present: boolean; phone: string | null }> }
@@ -20,8 +20,7 @@ export async function POST(
 
   try {
     const body = await req.json();
-    const members: Array<{ id: number; present: boolean; phone: string | null }> =
-      body.members;
+    const members: CheckinMember[] = body.members;
 
     if (!Array.isArray(members) || members.length === 0) {
       return NextResponse.json({ error: "members array is required" }, { status: 400 });
