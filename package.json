@@ -1,0 +1,41 @@
+{
+  "name": "event-checkin",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "db:setup": "node scripts/setup-db.mjs",
+    "db:seed-admin": "node scripts/seed-admin.mjs",
+    "test:smoke": "node scripts/smoke-test.mjs",
+    "test:csv": "node scripts/test-csv-mapping.mjs",
+    "test:cron-auth": "node scripts/test-cron-auth.mjs"
+  },
+  "dependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/papaparse": "^5.5.2",
+    "@types/pg": "^8.20.0",
+    "bcryptjs": "^3.0.3",
+    "googleapis": "^173.0.0",
+    "jsonwebtoken": "^9.0.3",
+    "next": "16.2.9",
+    "papaparse": "^5.5.4",
+    "pg": "^8.22.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.9",
+    "pg-mem": "^3.0.14",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
