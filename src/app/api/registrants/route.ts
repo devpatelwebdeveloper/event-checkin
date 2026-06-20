@@ -28,18 +28,20 @@ export async function GET(req: NextRequest) {
     );
   } else {
     const likeTerm = `%${q.toLowerCase()}%`;
+    const phoneDigits = q.replace(/[^0-9]/g, "");
+    const phoneLike = phoneDigits.length > 0 ? `%${phoneDigits}%` : null;
     rows = await query<Registrant>(
       `SELECT r.*, u.name AS checked_in_by_name
        FROM registrants r
        LEFT JOIN users u ON u.id = r.checked_in_by
        WHERE LOWER(r.full_name) LIKE $1
           OR LOWER(r.email) LIKE $1
-          OR r.contact_number LIKE $1
+          OR ($3::text IS NOT NULL AND regexp_replace(r.contact_number, '[^0-9]', '', 'g') LIKE $3)
        ORDER BY
          CASE WHEN LOWER(r.full_name) LIKE $2 THEN 0 ELSE 1 END,
          r.full_name ASC
-       LIMIT $3`,
-      [likeTerm, `${q.toLowerCase()}%`, limit]
+       LIMIT $4`,
+      [likeTerm, `${q.toLowerCase()}%`, phoneLike, limit]
     );
   }
 
@@ -66,6 +68,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Full name is required" }, { status: 400 });
     }
 
+    const cleanPhone = contact_number
+      ? contact_number.replace(/[^0-9]/g, "") || null
+      : null;
+
     const rows = await query<{ id: number }>(
       `INSERT INTO registrants
         (full_name, email, contact_number, address, total_family_count, family_member_names, is_walkin)
@@ -74,7 +80,7 @@ export async function POST(req: NextRequest) {
       [
         full_name.trim(),
         email || null,
-        contact_number || null,
+        cleanPhone,
         address || null,
         total_family_count && total_family_count > 0 ? total_family_count : 1,
         family_member_names || null,

@@ -9,6 +9,12 @@ export interface ImportResult {
   totalRows: number;
 }
 
+function normalizePhone(phone: string | null | undefined): string | null {
+  if (!phone) return null;
+  const digits = phone.replace(/[^0-9]/g, "");
+  return digits.length > 0 ? digits : null;
+}
+
 function findCol(row: Record<string, string>, ...candidates: string[]): string | null {
   const keys = Object.keys(row);
   for (const candidate of candidates) {
@@ -79,6 +85,7 @@ export async function importRegistrantsFromCsv(csv: string): Promise<ImportResul
     const familyCount = parseInt(familyCountRaw || "1", 10);
     const normalizedEmail = email && email.trim().length > 0 ? email.trim() : null;
     const cleanName = fullName.trim();
+    const cleanPhone = normalizePhone(contactNumber);
 
     let existing: { id: number }[] = [];
     if (normalizedEmail) {
@@ -92,7 +99,7 @@ export async function importRegistrantsFromCsv(csv: string): Promise<ImportResul
          WHERE LOWER(full_name) = LOWER($1)
            AND COALESCE(contact_number, '') = COALESCE($2, '')
            AND is_walkin = FALSE`,
-        [cleanName, contactNumber || null]
+        [cleanName, cleanPhone]
       );
     }
 
@@ -100,7 +107,7 @@ export async function importRegistrantsFromCsv(csv: string): Promise<ImportResul
       timestamp || null,
       normalizedEmail,
       cleanName,
-      contactNumber || null,
+      cleanPhone,
       address || null,
       isNaN(familyCount) || familyCount < 1 ? 1 : familyCount,
       familyMembers || null,

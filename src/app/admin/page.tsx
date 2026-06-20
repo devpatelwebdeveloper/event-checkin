@@ -57,6 +57,18 @@ export default function AdminPage() {
     fetchStats();
   }
 
+  async function handleDelete(id: number, name: string) {
+    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+    const res = await fetch(`/api/registrants/${id}`, { method: "DELETE" });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || "Delete failed");
+      return;
+    }
+    setResults((prev) => prev.filter((r) => r.id !== id));
+    fetchStats();
+  }
+
   function handleExport() {
     window.location.href = "/api/registrants/export";
   }
@@ -162,14 +174,23 @@ export default function AdminPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    {r.checked_in && (
+                    <div className="flex items-center justify-end gap-3">
+                      {r.checked_in && (
+                        <button
+                          onClick={() => handleUndo(r.id)}
+                          className="text-red-600 hover:text-red-800 font-medium"
+                        >
+                          Undo
+                        </button>
+                      )}
                       <button
-                        onClick={() => handleUndo(r.id)}
-                        className="text-red-600 hover:text-red-800 font-medium"
+                        onClick={() => handleDelete(r.id, r.full_name)}
+                        className="text-slate-400 hover:text-red-600 font-medium"
+                        title="Delete registrant"
                       >
-                        Undo
+                        ✕
                       </button>
-                    )}
+                    </div>
                   </td>
                 </tr>
               ))}

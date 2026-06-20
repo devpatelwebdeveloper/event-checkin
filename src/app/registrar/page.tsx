@@ -76,16 +76,35 @@ export default function RegistrarPage() {
       <TopBar user={user} title="Check-In" />
 
       <main className="flex-1 max-w-2xl w-full mx-auto px-4 py-4 sm:py-6">
-        <div className="mb-4">
+        <div className="flex gap-2 mb-4">
           <input
             type="text"
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search name, email, or phone…"
-            className="w-full rounded-xl border border-slate-300 px-4 py-4 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="flex-1 rounded-xl border border-slate-300 px-4 py-4 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
+          <button
+            onClick={() => setShowAddWalkIn(true)}
+            className="rounded-xl bg-blue-600 text-white font-medium px-4 hover:bg-blue-700 transition-colors whitespace-nowrap"
+          >
+            + Walk-in
+          </button>
         </div>
+
+        {showAddWalkIn && (
+          <div className="mb-4">
+            <WalkInForm
+              onAdded={(name) => {
+                setShowAddWalkIn(false);
+                setQuery(name);
+                runSearch(name);
+              }}
+              onCancel={() => setShowAddWalkIn(false)}
+            />
+          </div>
+        )}
 
         {error && (
           <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-4">
@@ -110,27 +129,8 @@ export default function RegistrarPage() {
           ))}
           {!searching && query.trim().length > 0 && results.length === 0 && (
             <p className="text-center text-slate-500 py-8">
-              No match found. Add as a walk-in below.
+              No match found.
             </p>
-          )}
-        </div>
-
-        <div className="mt-6 border-t border-slate-200 pt-4">
-          {showAddWalkIn ? (
-            <WalkInForm
-              onAdded={() => {
-                setShowAddWalkIn(false);
-                runSearch(query);
-              }}
-              onCancel={() => setShowAddWalkIn(false)}
-            />
-          ) : (
-            <button
-              onClick={() => setShowAddWalkIn(true)}
-              className="w-full rounded-xl border-2 border-dashed border-slate-300 text-slate-600 font-medium py-4 hover:border-slate-400 hover:bg-slate-100 transition-colors"
-            >
-              + Add walk-in registrant
-            </button>
           )}
         </div>
       </main>
@@ -142,7 +142,7 @@ function WalkInForm({
   onAdded,
   onCancel,
 }: {
-  onAdded: () => void;
+  onAdded: (name: string) => void;
   onCancel: () => void;
 }) {
   const [fullName, setFullName] = useState("");
@@ -172,7 +172,7 @@ function WalkInForm({
         setError(data.error || "Failed to add registrant");
         return;
       }
-      onAdded();
+      onAdded(fullName.trim());
     } catch {
       setError("Network error");
     } finally {
