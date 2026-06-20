@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useSession } from "@/lib/useSession";
 import TopBar from "@/components/TopBar";
@@ -12,12 +12,45 @@ export default function AdminPage() {
   const [results, setResults] = useState<Registrant[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [searching, setSearching] = useState(false);
+  const [sort, setSort] = useState<{ field: "name" | "status"; dir: "asc" | "desc" }>({
+    field: "status",
+    dir: "asc",
+  });
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 50;
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const sortedResults = useMemo(() => {
+    return [...results].sort((a, b) => {
+      let cmp = 0;
+      if (sort.field === "name") {
+        cmp = a.full_name.localeCompare(b.full_name);
+      } else {
+        // status: pending (false) before checked-in (true) when asc
+        cmp = Number(a.checked_in) - Number(b.checked_in);
+        if (cmp === 0) cmp = a.full_name.localeCompare(b.full_name);
+      }
+      return sort.dir === "asc" ? cmp : -cmp;
+    });
+  }, [results, sort]);
+
+  function toggleSort(field: "name" | "status") {
+    setSort((prev) =>
+      prev.field === field
+        ? { field, dir: prev.dir === "asc" ? "desc" : "asc" }
+        : { field, dir: "asc" }
+    );
+    setPage(1);
+  }
+
+  const totalPages = Math.ceil(sortedResults.length / PAGE_SIZE);
+  const pageResults = sortedResults.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const runSearch = useCallback(async (q: string) => {
     setSearching(true);
+    setPage(1);
     try {
-      const res = await fetch(`/api/registrants?q=${encodeURIComponent(q)}&limit=50`);
+      const res = await fetch(`/api/registrants?q=${encodeURIComponent(q)}&limit=5000`);
       const data = await res.json();
       if (res.ok) setResults(data.registrants);
     } finally {
@@ -60,7 +93,7 @@ export default function AdminPage() {
   async function handleDelete(id: number, name: string) {
     if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
     const res = await fetch(`/api/registrants/${id}`, { method: "DELETE" });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       alert(data.error || "Delete failed");
       return;
@@ -138,15 +171,23 @@ export default function AdminPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-slate-500 text-left">
               <tr>
-                <th className="px-4 py-3 font-medium">Name</th>
+                <th className="px-4 py-3 font-medium">
+                  <button onClick={() => toggleSort("name")} className="flex items-center gap-1 hover:text-slate-800">
+                    Name <SortIcon active={sort.field === "name"} dir={sort.dir} />
+                  </button>
+                </th>
                 <th className="px-4 py-3 font-medium">Email / Phone</th>
                 <th className="px-4 py-3 font-medium">Party</th>
-                <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium">
+                  <button onClick={() => toggleSort("status")} className="flex items-center gap-1 hover:text-slate-800">
+                    Status <SortIcon active={sort.field === "status"} dir={sort.dir} />
+                  </button>
+                </th>
                 <th className="px-4 py-3 font-medium"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {results.map((r) => (
+              {pageResults.map((r) => (
                 <tr key={r.id}>
                   <td className="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">
                     {r.full_name}
@@ -204,8 +245,41 @@ export default function AdminPage() {
             </tbody>
           </table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-4 text-sm text-slate-600">
+            <span>
+              Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, sortedResults.length)} of {sortedResults.length}
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPage((p) => p - 1)}
+                disabled={page === 1}
+                className="rounded-lg border border-slate-300 px-3 py-1.5 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                ← Prev
+              </button>
+              <span className="px-3 py-1.5 font-medium">{page} / {totalPages}</span>
+              <button
+                onClick={() => setPage((p) => p + 1)}
+                disabled={page === totalPages}
+                className="rounded-lg border border-slate-300 px-3 py-1.5 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        )}
       </main>
     </div>
+  );
+}
+
+function SortIcon({ active, dir }: { active: boolean; dir: "asc" | "desc" }) {
+  return (
+    <span className={active ? "text-slate-700" : "text-slate-300"}>
+      {!active ? "↕" : dir === "asc" ? "↑" : "↓"}
+    </span>
   );
 }
 

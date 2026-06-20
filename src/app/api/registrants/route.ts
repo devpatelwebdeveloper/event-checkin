@@ -12,7 +12,8 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const q = (searchParams.get("q") || "").trim();
-  const limit = Math.min(parseInt(searchParams.get("limit") || "25", 10) || 25, 100);
+  const maxLimit = auth.user.role === "admin" ? 5000 : 100;
+  const limit = Math.min(parseInt(searchParams.get("limit") || "25", 10) || 25, maxLimit);
 
   let rows: Registrant[];
 
