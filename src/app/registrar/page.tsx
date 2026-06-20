@@ -209,10 +209,18 @@ function WalkInForm({
       <div className="flex items-center gap-2">
         <label className="text-sm text-slate-700">Party size:</label>
         <input
-          type="number"
-          min={1}
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
           value={familyCount}
-          onChange={(e) => setFamilyCount(parseInt(e.target.value, 10) || 1)}
+          onChange={(e) => {
+            const raw = e.target.value.replace(/[^0-9]/g, "");
+            setFamilyCount(raw === "" ? "" as unknown as number : parseInt(raw, 10));
+          }}
+          onBlur={(e) => {
+            const n = parseInt(e.target.value, 10);
+            setFamilyCount(isNaN(n) || n < 1 ? 1 : n);
+          }}
           className="w-20 rounded-lg border border-slate-300 px-3 py-2 text-base text-center"
         />
       </div>
