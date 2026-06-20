@@ -4,7 +4,7 @@ import { requireRole } from "@/lib/api-auth";
 import { Registrant } from "@/lib/types";
 
 // POST /api/registrants/:id/checkin
-// Body: { party_count: number }  -- how many of the registered party actually showed up
+// Body: { members: Array<{ id: number; present: boolean; phone: string | null }> }
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -20,33 +20,63 @@ export async function POST(
 
   try {
     const body = await req.json();
-    const partyCount = parseInt(body.party_count, 10);
+    const members: Array<{ id: number; present: boolean; phone: string | null }> =
+      body.members;
 
-    if (isNaN(partyCount) || partyCount < 1) {
-      return NextResponse.json(
-        { error: "party_count must be a positive number" },
-        { status: 400 }
-      );
+    if (!Array.isArray(members) || members.length === 0) {
+      return NextResponse.json({ error: "members array is required" }, { status: 400 });
     }
 
     const existing = await queryOne<Registrant>(
       `SELECT * FROM registrants WHERE id = $1`,
       [registrantId]
     );
-
     if (!existing) {
       return NextResponse.json({ error: "Registrant not found" }, { status: 404 });
     }
-
     if (existing.checked_in) {
+      return NextResponse.json({ error: "Already checked in", existing }, { status: 409 });
+    }
+
+    const presentCount = members.filter((m) => m.present).length;
+    if (presentCount === 0) {
       return NextResponse.json(
-        {
-          error: "Already checked in",
-          checked_in_by_name: null,
-          existing,
-        },
-        { status: 409 }
+        { error: "At least one member must be present" },
+        { status: 400 }
       );
+    }
+
+    for (const m of members) {
+      const phone = m.phone ? m.phone.replace(/[^0-9]/g, "") || null : null;
+      if (m.id === null) {
+        // New member added at check-in time — insert and optionally mark checked in
+        const name = m.name?.trim();
+        if (!name) continue;
+        await query(
+          `INSERT INTO family_members
+             (registrant_id, name, phone, is_primary, checked_in, checked_in_at, checked_in_by)
+           VALUES ($1, $2, $3, FALSE, $4,
+             CASE WHEN $4 THEN now() ELSE NULL END,
+             CASE WHEN $4 THEN $5 ELSE NULL END)
+           ON CONFLICT (registrant_id, LOWER(name)) WHERE is_primary = FALSE
+           DO UPDATE SET
+             phone = COALESCE(EXCLUDED.phone, family_members.phone),
+             checked_in = EXCLUDED.checked_in,
+             checked_in_at = EXCLUDED.checked_in_at,
+             checked_in_by = EXCLUDED.checked_in_by`,
+          [registrantId, name, phone, m.present, auth.user.id]
+        );
+      } else {
+        await query(
+          `UPDATE family_members
+           SET checked_in = $1,
+               phone = CASE WHEN $2::text IS NOT NULL THEN $2 ELSE phone END,
+               checked_in_at = CASE WHEN $1 THEN now() ELSE NULL END,
+               checked_in_by = CASE WHEN $1 THEN $3 ELSE NULL END
+           WHERE id = $4 AND registrant_id = $5`,
+          [m.present, phone, auth.user.id, m.id, registrantId]
+        );
+      }
     }
 
     const updated = await queryOne<Registrant>(
@@ -58,13 +88,13 @@ export async function POST(
            updated_at = now()
        WHERE id = $3
        RETURNING *`,
-      [partyCount, auth.user.id, registrantId]
+      [presentCount, auth.user.id, registrantId]
     );
 
     await query(
       `INSERT INTO checkin_log (registrant_id, user_id, action, party_count)
        VALUES ($1, $2, 'checkin', $3)`,
-      [registrantId, auth.user.id, partyCount]
+      [registrantId, auth.user.id, presentCount]
     );
 
     return NextResponse.json({ registrant: updated });

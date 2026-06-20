@@ -49,6 +49,27 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_registrants_email_unique
   ON registrants (LOWER(email))
   WHERE email IS NOT NULL AND email <> '' AND is_walkin = FALSE;
 
+-- Individual members within a registration (primary + additional family members).
+-- Lazy-created on first check-in if not populated during import.
+CREATE TABLE IF NOT EXISTS family_members (
+  id SERIAL PRIMARY KEY,
+  registrant_id INTEGER NOT NULL REFERENCES registrants(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  phone TEXT,
+  is_primary BOOLEAN NOT NULL DEFAULT FALSE,
+  checked_in BOOLEAN NOT NULL DEFAULT FALSE,
+  checked_in_at TIMESTAMPTZ,
+  checked_in_by INTEGER REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_family_members_registrant ON family_members (registrant_id);
+-- One primary member per registrant
+CREATE UNIQUE INDEX IF NOT EXISTS idx_family_members_primary
+  ON family_members (registrant_id) WHERE is_primary = TRUE;
+-- No duplicate names (case-insensitive) among non-primary members of the same registrant
+CREATE UNIQUE INDEX IF NOT EXISTS idx_family_members_name
+  ON family_members (registrant_id, LOWER(name)) WHERE is_primary = FALSE;
+
 -- Simple audit trail of check-in actions (so admin can see history / undo accurately)
 CREATE TABLE IF NOT EXISTS checkin_log (
   id SERIAL PRIMARY KEY,

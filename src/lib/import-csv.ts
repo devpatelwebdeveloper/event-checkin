@@ -9,6 +9,44 @@ export interface ImportResult {
   totalRows: number;
 }
 
+async function upsertFamilyMembers(
+  registrantId: number,
+  primaryName: string,
+  primaryPhone: string | null,
+  familyMemberNames: string | null,
+  totalFamilyCount: number
+) {
+  await query(
+    `INSERT INTO family_members (registrant_id, name, phone, is_primary)
+     VALUES ($1, $2, $3, TRUE)
+     ON CONFLICT (registrant_id) WHERE is_primary = TRUE
+     DO UPDATE SET name = EXCLUDED.name`,
+    [registrantId, primaryName, primaryPhone]
+  );
+
+  const names: string[] = [];
+  if (familyMemberNames) {
+    names.push(
+      ...familyMemberNames
+        .split(",")
+        .map((n) => n.trim())
+        .filter((n) => n.length > 0)
+    );
+  }
+  for (let i = names.length + 2; i <= totalFamilyCount; i++) {
+    names.push(`Member ${i}`);
+  }
+  for (const name of names) {
+    await query(
+      `INSERT INTO family_members (registrant_id, name, is_primary)
+       VALUES ($1, $2, FALSE)
+       ON CONFLICT (registrant_id, LOWER(name)) WHERE is_primary = FALSE
+       DO NOTHING`,
+      [registrantId, name]
+    );
+  }
+}
+
 function normalizePhone(phone: string | null | undefined): string | null {
   if (!phone) return null;
   const digits = phone.replace(/[^0-9]/g, "");
@@ -103,13 +141,14 @@ export async function importRegistrantsFromCsv(csv: string): Promise<ImportResul
       );
     }
 
+    const fc = isNaN(familyCount) || familyCount < 1 ? 1 : familyCount;
     const values = [
       timestamp || null,
       normalizedEmail,
       cleanName,
       cleanPhone,
       address || null,
-      isNaN(familyCount) || familyCount < 1 ? 1 : familyCount,
+      fc,
       familyMembers || null,
       heardAbout || null,
       referredBy || null,
@@ -124,15 +163,18 @@ export async function importRegistrantsFromCsv(csv: string): Promise<ImportResul
          WHERE id = $10`,
         [...values, existing[0].id]
       );
+      await upsertFamilyMembers(existing[0].id, cleanName, cleanPhone, familyMembers || null, fc);
       updated++;
     } else {
-      await query(
+      const inserted_rows = await query<{ id: number }>(
         `INSERT INTO registrants
           (timestamp_raw, email, full_name, contact_number, address,
            total_family_count, family_member_names, heard_about_event, referred_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         RETURNING id`,
         values
       );
+      await upsertFamilyMembers(inserted_rows[0].id, cleanName, cleanPhone, familyMembers || null, fc);
       inserted++;
     }
   }

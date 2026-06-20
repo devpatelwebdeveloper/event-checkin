@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "@/lib/useSession";
 import TopBar from "@/components/TopBar";
 import RegistrantCard from "@/components/RegistrantCard";
-import { Registrant } from "@/lib/types";
+import { Registrant, CheckinMember } from "@/lib/types";
 
 export default function RegistrarPage() {
   const { user, loading } = useSession(["admin", "registrar"]);
@@ -43,11 +43,11 @@ export default function RegistrarPage() {
     };
   }, [query, runSearch]);
 
-  async function handleCheckIn(id: number, partyCount: number) {
+  async function handleCheckIn(id: number, members: CheckinMember[]) {
     const res = await fetch(`/api/registrants/${id}/checkin`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ party_count: partyCount }),
+      body: JSON.stringify({ members }),
     });
     const data = await res.json();
     if (!res.ok) {

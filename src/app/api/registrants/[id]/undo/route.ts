@@ -53,6 +53,13 @@ export async function POST(
     );
 
     await query(
+      `UPDATE family_members
+       SET checked_in = FALSE, checked_in_at = NULL, checked_in_by = NULL
+       WHERE registrant_id = $1`,
+      [registrantId]
+    );
+
+    await query(
       `INSERT INTO checkin_log (registrant_id, user_id, action, party_count)
        VALUES ($1, $2, 'undo', $3)`,
       [registrantId, auth.user.id, existing.checked_in_count]

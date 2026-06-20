@@ -21,6 +21,24 @@ export interface Registrant {
   updated_at: string;
 }
 
+export interface FamilyMember {
+  id: number;
+  registrant_id: number;
+  name: string;
+  phone: string | null;
+  is_primary: boolean;
+  checked_in: boolean;
+  checked_in_at: string | null;
+  checked_in_by: number | null;
+}
+
+export interface CheckinMember {
+  id: number | null;  // null for newly added members
+  name?: string;      // required when id is null
+  present: boolean;
+  phone: string | null;
+}
+
 export interface Stats {
   total_registrants: number;
   total_expected_people: number; // sum of total_family_count
