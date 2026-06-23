@@ -91,6 +91,7 @@ export default function RegistrantCard({
         registrant.id,
         members.map((m) => ({
           id: m.id,
+          name: m.name,
           present: m.present,
           phone: m.phone.trim() || null,
         }))
@@ -186,14 +187,14 @@ export default function RegistrantCard({
                         onChange={() => togglePresent(i)}
                         className="w-5 h-5 rounded accent-blue-600"
                       />
-                      {m.id === null ? (
+                      {m.id === null || !m.isPrimary ? (
                         <input
                           type="text"
                           placeholder="Full name"
                           value={m.name}
                           onChange={(e) => updateName(i, e.target.value)}
                           className="flex-1 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium"
-                          autoFocus
+                          autoFocus={m.id === null}
                         />
                       ) : (
                         <span className="flex-1 font-medium text-slate-900">

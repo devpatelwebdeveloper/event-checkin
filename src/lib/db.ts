@@ -1,26 +1,21 @@
 import { Pool } from "pg";
 
-// Vercel Postgres (Neon) injects POSTGRES_URL automatically when you add
-// the Storage integration. Falling back to DATABASE_URL for local/dev use.
-const connectionString =
-  process.env.POSTGRES_URL || process.env.DATABASE_URL;
-
-if (!connectionString) {
-  // Don't throw at import time during build — only when actually queried.
-  console.warn(
-    "[db] No POSTGRES_URL or DATABASE_URL set. Set this in Vercel's Storage tab or your .env.local"
-  );
-}
-
 declare global {
   var __pgPool: Pool | undefined;
 }
 
 function getPool(): Pool {
   if (!global.__pgPool) {
+    const connectionString =
+      process.env.POSTGRES_URL || process.env.DATABASE_URL;
+    if (!connectionString) {
+      throw new Error(
+        "[db] No POSTGRES_URL or DATABASE_URL set. Set this in Vercel's Storage tab or your .env.local"
+      );
+    }
     global.__pgPool = new Pool({
       connectionString,
-      ssl: connectionString?.includes("localhost")
+      ssl: connectionString.includes("localhost")
         ? false
         : { rejectUnauthorized: false },
       max: 10,

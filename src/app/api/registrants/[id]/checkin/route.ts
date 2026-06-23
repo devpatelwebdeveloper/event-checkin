@@ -56,7 +56,7 @@ export async function POST(
              (registrant_id, name, phone, is_primary, checked_in, checked_in_at, checked_in_by)
            VALUES ($1, $2, $3, FALSE, $4,
              CASE WHEN $4 THEN now() ELSE NULL END,
-             CASE WHEN $4 THEN $5 ELSE NULL END)
+             CASE WHEN $4 THEN $5::integer ELSE NULL END)
            ON CONFLICT (registrant_id, LOWER(name)) WHERE is_primary = FALSE
            DO UPDATE SET
              phone = COALESCE(EXCLUDED.phone, family_members.phone),
@@ -66,14 +66,16 @@ export async function POST(
           [registrantId, name, phone, m.present, auth.user.id]
         );
       } else {
+        const memberName = m.name?.trim() || null;
         await query(
           `UPDATE family_members
            SET checked_in = $1,
+               name = CASE WHEN NOT is_primary AND $6::text IS NOT NULL THEN $6 ELSE name END,
                phone = CASE WHEN $2::text IS NOT NULL THEN $2 ELSE phone END,
                checked_in_at = CASE WHEN $1 THEN now() ELSE NULL END,
-               checked_in_by = CASE WHEN $1 THEN $3 ELSE NULL END
+               checked_in_by = CASE WHEN $1 THEN $3::integer ELSE NULL END
            WHERE id = $4 AND registrant_id = $5`,
-          [m.present, phone, auth.user.id, m.id, registrantId]
+          [m.present, phone, auth.user.id, m.id, registrantId, memberName]
         );
       }
     }

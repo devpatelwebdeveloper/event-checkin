@@ -7,11 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:setup": "node scripts/setup-db.mjs",
-    "db:seed-admin": "node scripts/seed-admin.mjs",
-    "test:smoke": "node scripts/smoke-test.mjs",
-    "test:csv": "node scripts/test-csv-mapping.mjs",
-    "test:cron-auth": "node scripts/test-cron-auth.mjs"
+    "db:setup": "node --env-file=.env.local scripts/setup-db.mjs",
+    "db:seed-admin": "node --env-file=.env.local scripts/seed-admin.mjs",
+    "test:smoke": "node --env-file=.env.local scripts/smoke-test.mjs",
+    "test:csv": "node --env-file=.env.local scripts/test-csv-mapping.mjs",
+    "test:cron-auth": "node --env-file=.env.local scripts/test-cron-auth.mjs"
   },
   "dependencies": {
     "@types/bcryptjs": "^2.4.6",
